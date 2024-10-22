@@ -6,7 +6,7 @@ import std.algorithm;
 import std.exception;
 import std.stdint;
 import std.stdio;
-import types;
+import types, position;
 
 private enum FV_SCALE = 16;
 __gshared private int16_t[256]             featureTransformerBiases;
@@ -47,12 +47,12 @@ shared static this()
 /**
  * 手番のある側から見た評価値を返す
  */
-short staticValue(const ref Position pos)
+short staticValue(Position pos)
 {
-    if (pos.piecesInHand[Color.BLACK][Type.KING] > 0) {
+    if (pos.piecesInHand[Color.BLACK][Type.KING.i] > 0) {
         return pos.sideToMove == Color.BLACK ? +15000 : -15000;
     }
-    if (pos.piecesInHand[Color.WHITE][Type.KING] > 0) {
+    if (pos.piecesInHand[Color.WHITE][Type.KING.i] > 0) {
         return pos.sideToMove == Color.BLACK ? -15000 : +15000;
     }
 
@@ -68,7 +68,7 @@ short staticValue(const ref Position pos)
     }
 
     // 持ち駒
-    for (int t = Type.PAWN; t <= Type.ROOK; t++) {
+    for (int t = Type.PAWN.i; t <= Type.ROOK.i; t++) {
         for (int i = 0; i < pos.piecesInHand[Color.BLACK][t]; i++) {
             blist[length] = bk * 1548 + OFFSET_HAND[Color.BLACK][t] + i;
             wlist[length] = wk * 1548 + OFFSET_HAND[Color.WHITE][t] + i;

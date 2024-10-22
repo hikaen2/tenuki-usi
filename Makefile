@@ -6,3 +6,6 @@ debug:
 
 release:
 	dub build -b release -f
+
+test:
+	dub test

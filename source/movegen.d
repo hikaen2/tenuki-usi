@@ -1,7 +1,7 @@
 module movegen;
 
-import position;
-import types;
+import std.stdint;
+import types, position;
 
 
 /**
@@ -29,7 +29,7 @@ import types;
  */
 bool inUchifuzume(Position p)
 {
-    if (!p.previousMove.isDrop || p.previousMove.from != Type.PAWN || !p.inCheck) {
+    if (!p.previousMove.isDrop || p.previousMove.type != Type.PAWN || !p.inCheck) {
         return false; // 直前の指し手が打ち歩でない，または現局面が王手をかけられていない場合は，打ち歩詰めでない
     }
 
@@ -88,25 +88,25 @@ bool inCheck(Position p)
 /**
  * 局面pにおいて指し手mが有効（不正でない）かどうかを返す
  */
-bool isValid(Move m, const ref Position p)
+bool isValid(Move m, ref Position p)
 {
     if (m.isDrop) {
         return !m.isPromote
-            && m.type < Type.KING
-            && SQ11 <= m.to && m.to <= SQ99
-            && p.piecesInHand[p.sideToMove][m.type] > 0
-            && p.board[m.to] == Square.EMPTY
-            && RANK_MIN[Square(p.sideToMove, m.type).i] <= RANK_OF[m.to]
-            && RANK_MAX[Square(p.sideToMove, m.type).i] >= RANK_OF[m.to];
+            && m.type.i < Type.KING.i
+            && SQ11 <= m.to.i && m.to.i <= SQ99
+            && p.piecesInHand[p.sideToMove][m.type.i] > 0
+            && p.board[m.to.i] == Square.EMPTY
+            && RANK_MIN[Square(p.sideToMove, m.type).i] <= RANK_OF[m.to.i]
+            && RANK_MAX[Square(p.sideToMove, m.type).i] >= RANK_OF[m.to.i];
     }
 
     // 移動元の位置と移動先に位置が11から99の範囲であること
-    if (m.from < SQ11 || SQ99 < m.from || m.to < SQ11 || SQ99 < m.to) {
+    if (m.from.i < SQ11 || SQ99 < m.from.i || m.to.i < SQ11 || SQ99 < m.to.i) {
         return false;
     }
 
-    Square sq_from = p.board[m.from]; // 移動元の枡を取る
-    Square sq_to = p.board[m.to]; // 移動先の枡を取る
+    Square sq_from = p.board[m.from.i]; // 移動元の枡を取る
+    Square sq_to = p.board[m.to.i]; // 移動先の枡を取る
 
     // 移動元の枡には味方の駒があるはず
     if (!sq_from.isFriendOf(p.sideToMove)) {
@@ -119,14 +119,14 @@ bool isValid(Move m, const ref Position p)
     }
 
     // 成る場合は、成れる駒であること
-    if (m.isPromote && !canPromote(sq_from, m.from, m.to)) {
+    if (m.isPromote && !canPromote(sq_from, m.from.i, m.to.i)) {
         return false;
     }
 
     foreach (Dir d; DIRECTIONS[sq_from.i]) {
-        for (int to = m.from + d.value; !isOverBound(to - d.value, to) && (p.board[to] == Square.EMPTY || p.board[to].isEnemyOf(p.sideToMove)); to += d.value) {
+        for (int to = m.from.i + d.value; !isOverBound(to - d.value, to) && (p.board[to] == Square.EMPTY || p.board[to].isEnemyOf(p.sideToMove)); to += d.value) {
             Square sq = m.isPromote ? sq_from.promote() : sq_from; // 成る手であれば成ったあとの駒を取る
-            if (to == m.to && RANK_MIN[sq.i] <= RANK_OF[to] && RANK_OF[to] <= RANK_MAX[sq.i]) {
+            if (to == m.to.i && RANK_MIN[sq.i] <= RANK_OF[to] && RANK_OF[to] <= RANK_MAX[sq.i]) {
                 return true;
             }
             if (!d.isFly || p.board[to].isEnemyOf(p.sideToMove)) {
@@ -141,9 +141,9 @@ bool isValid(Move m, const ref Position p)
  * 駒を取る手を生成する
  * returns: 生成した数
  */
-int capturelMoves(const ref Position p, Move[] outMoves)
+int capturelMoves(ref Position p, Move[] outMoves)
 {
-    if (p.piecesInHand[Color.BLACK][Type.KING] > 0 || p.piecesInHand[Color.WHITE][Type.KING] > 0) {
+    if (p.piecesInHand[Color.BLACK][Type.KING.i] > 0 || p.piecesInHand[Color.WHITE][Type.KING.i] > 0) {
         return 0;
     }
 
@@ -157,13 +157,13 @@ int capturelMoves(const ref Position p, Move[] outMoves)
             for (int to = from + d.value; !isOverBound(to - d.value, to) && (p.board[to] == Square.EMPTY || p.board[to].isEnemyOf(p.sideToMove)); to += d.value) {
                 if (p.board[to].isEnemyOf(p.sideToMove)) {
                     if (canPromote(p.board[from], from, to)) {
-                        outMoves[length++] = createPromote(from, to);
+                        outMoves[length++] = Move.createPromote(Address(from), Address(to));
                         if (p.board[from].type == Type.SILVER
                             || ((RANK_OF[to] == 3 || RANK_OF[to] == 7) && (p.board[from].type == Type.LANCE || p.board[from].type == Type.KNIGHT))) {
-                            outMoves[length++] = createMove(from, to); // 銀か, 3段目,7段目の香,桂なら不成も生成する
+                            outMoves[length++] = Move.createMove(Address(from), Address(to)); // 銀か, 3段目,7段目の香,桂なら不成も生成する
                         }
                     } else if (RANK_MIN[p.board[from].i] <= RANK_OF[to] && RANK_OF[to] <= RANK_MAX[p.board[from].i]) {
-                        outMoves[length++] = createMove(from, to);
+                        outMoves[length++] = Move.createMove(Address(from), Address(to));
                     }
                     break;
                 }
@@ -180,9 +180,9 @@ int capturelMoves(const ref Position p, Move[] outMoves)
  * 合法手を生成する
  * returns: 生成した数
  */
-int legalMoves(const ref Position p, Move[] outMoves)
+int legalMoves(ref Position p, Move[] outMoves)
 {
-    if (p.piecesInHand[Color.BLACK][Type.KING] > 0 || p.piecesInHand[Color.WHITE][Type.KING] > 0) {
+    if (p.piecesInHand[Color.BLACK][Type.KING.i] > 0 || p.piecesInHand[Color.WHITE][Type.KING.i] > 0) {
         return 0;
     }
 
@@ -200,13 +200,13 @@ int legalMoves(const ref Position p, Move[] outMoves)
         foreach (Dir d; DIRECTIONS[p.board[from].i]) {
             for (int to = from + d.value; !isOverBound(to - d.value, to) && p.board[to] == Square.EMPTY; to += d.value) {
                 if (canPromote(p.board[from], from, to)) {
-                    outMoves[length++] = createPromote(from, to);
+                    outMoves[length++] = Move.createPromote(Address(from), Address(to));
                     if (p.board[from].type == Type.SILVER
                         || ((RANK_OF[to] == 3 || RANK_OF[to] == 7) && (p.board[from].type == Type.LANCE || p.board[from].type == Type.KNIGHT))) {
-                        outMoves[length++] = createMove(from, to); // 銀か, 3段目,7段目の香,桂なら不成も生成する
+                        outMoves[length++] = Move.createMove(Address(from), Address(to)); // 銀か, 3段目,7段目の香,桂なら不成も生成する
                     }
                 } else if (RANK_MIN[p.board[from].i] <= RANK_OF[to] && RANK_OF[to] <= RANK_MAX[p.board[from].i]) {
-                    outMoves[length++] = createMove(from, to);
+                    outMoves[length++] = Move.createMove(Address(from), Address(to));
                 }
                 if (!d.isFly) {
                     break; // 飛び駒でなければここでbreak
@@ -220,9 +220,9 @@ int legalMoves(const ref Position p, Move[] outMoves)
         if (p.board[to] != Square.EMPTY) {
             continue;
         }
-        for (type_t t = (pawned[FILE_OF[to]] ? Type.LANCE : Type.PAWN); t <= Type.ROOK; t++) { // 歩,香,桂,銀,金,角,飛
-            if (p.piecesInHand[p.sideToMove][t] > 0 && RANK_OF[to] >= RANK_MIN[Square(p.sideToMove, t).i] && RANK_MAX[Square(p.sideToMove, t).i] >= RANK_OF[to]) {
-                outMoves[length++] = createDrop(t, to);
+        for (uint8_t t = (pawned[FILE_OF[to]] ? Type.LANCE.i : Type.PAWN.i); t <= Type.ROOK.i; t++) { // 歩,香,桂,銀,金,角,飛
+            if (p.piecesInHand[p.sideToMove][t] > 0 && RANK_OF[to] >= RANK_MIN[Square(p.sideToMove, Type(t)).i] && RANK_MAX[Square(p.sideToMove, Type(t)).i] >= RANK_OF[to]) {
+                outMoves[length++] = Move.createDrop(Type(t), Address(to));
             }
         }
     }

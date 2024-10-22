@@ -1,238 +1,154 @@
 module main;
 
-import book;
-import core.thread;
-import movegen;
-import parser;
-import position;
-import search;
-import std.algorithm.comparison;
-import std.conv;
-import std.datetime.systime : SysTime, Clock;
-import std.format;
-import std.getopt;
-import std.regex;
-import std.socket;
 import std.stdio;
-import text;
-import types;
-static import config, misc, tt;
+import std.datetime;
+import std.string;
+import std.regex;
+import std.conv : to;
+import core.thread;
+import core.sys.posix.unistd : getpid;
+
+import types, book, eval, search, position, movegen;
 
 
-__gshared private Socket SOCKET;
-__gshared private bool USE_ENHANCED_CSA_PROTOCOL = false;
-__gshared private File RECV_LOG;
+__gshared File logFile;
+__gshared string[string] options;
+__gshared Position _position;
 
 
-int main(string[] args)
+void send(string line)
 {
-    // info
-    stdout.writeln(tt.info());
+    log(getpid().to!string ~ " " ~ Clock.currTime().toISOExtString() ~ " > " ~ line);
+    writeln(line);
+    stdout.flush();
+}
 
-    if (args.length >= 2 && args[1] == "test") {
-        test();
-        return 0;
-    }
-    if (args.length >= 2 && args[1] == "validate") {
-        validateBook();
-        return 0;
-    }
+void log(string line)
+{
+    logFile.writeln(line);
+    logFile.flush();
+}
 
-    ushort port = 4081;
+void on_usi(string line)
+{
+    send("id name 手抜き");
+    send("id author 手抜きチーム");
+    send("option name USI_Hash type spin default 0");
+    send("option name USI_Ponder type check default false");
+    send("option name Depth type spin default 1 min -1 max 1");
+    send("usiok");
+}
+
+void on_isready(string line)
+{
+    send("readyok");
+}
+
+void on_position(string line)
+{
+    auto parts = line.split();
+    string sfen_or_startpos = parts[1];
+    auto m = line.matchFirst(regex(r"moves (.*)$"));
+    string moves = !m.empty ? m.captures[1] : null;
+
+    _position = Position.create("sfen lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1");
+
+    foreach (move; moves.split()) {
+        Move hoge = Move.parseUsi(move);
+        log(hoge.toString(_position));
+        log(hoge.toString(_position, FORMAT.USI));
+
+        _position = _position.doMove(hoge);
+        log(_position.toString);
+
+    }
+}
+
+void on_setoption(string line)
+{
+    auto parts = line.split();
+    string name = parts[2];
+    string value = parts[4];
+    options[name] = value;
+    log("setoption: " ~ options.to!string);
+}
+
+
+void on_go(string line)
+{
+    log("on_go");
+
+    Thread.sleep(dur!("msecs")(1000));
+
+    Move m = _position.ponder();
+    send("bestmove " ~ m.toString(_position, FORMAT.USI));
+}
+
+
+
+
+
+
+void main()
+{
+
+    //
+    //Position p = Position.create("sfen 1n6k/2s1ggrB1/3pGp1LS/LSp1S2+B1/4p4/1p4L2/2PPPPP1N/1GK5p/6R2 w N7Pnl 109");
+    //writeln(p);
+    //
+    //Move m = p.ponder();
+    //writeln(m.toString(p));
+    //p = p.doMove(m);
+    //writeln(p);
+    //p = p.doMove(Move.NULL_MOVE);
+    //writeln(p);
+    //writeln(p.inCheck);
+    //
+    ////
+    //foreach (m; pv) {
+    //    writeln(m.toString(p));
+    //}
+    //
+    //
+    //writeln(p.toString);
+
+
+
     try {
-        getopt(args, "e", &USE_ENHANCED_CSA_PROTOCOL, "p", &port);
-        if (args.length < 4) {
-            throw new Exception("");
-        }
-    } catch (Exception e) {
-        stderr.writeln("usage: tenuki [-e] [-p port] hostname username password");
-        stderr.writeln("  -e  send enhanced CSA protocol");
-        stderr.writeln("  -p  default: 4081");
-        return 1;
-    }
-    const string hostname = args[1];
-    const string username = args[2];
-    const string password = args[3];
+        logFile = File("log.txt", "a");
 
-    stdout.writefln("Connecting to %s port %s.", hostname, port);
-    SOCKET = new TcpSocket(new InternetAddress(hostname, port));
-    scope(exit) SOCKET.close();
-    SOCKET.setOption(SocketOptionLevel.SOCKET, SocketOption.RCVTIMEO, dur!"seconds"(3600));
+        foreach (line; stdin.byLineCopy()) {
+            line = line.chomp();
+            log(getpid().to!string ~ " " ~ Clock.currTime().toISOExtString() ~ " < " ~ line);
 
-    RECV_LOG = File(format("log/%s.log", Clock.currTime().apply((ref SysTime it) => it.fracSecs = hnsecs(0)).toISOString()), "w");
-    scope(exit) RECV_LOG.close();
-
-    SOCKET.writeLine(format("LOGIN %s %s", username, password));
-    if (SOCKET.readLine() == "LOGIN:incorrect") {
-        return 1;
-    }
-
-    string[string] gameSummary;
-    for (string line = SOCKET.readLine(); line != "END Game_Summary"; line = SOCKET.readLine()) {
-        auto m = line.matchFirst(r"^([^:]+):(.+)$");
-        if (!m.empty) {
-            gameSummary[m[1]] = m[2];
-        }
-    }
-
-    const color_t us = (gameSummary["Your_Turn"] == "+" ? Color.BLACK : Color.WHITE);
-    SOCKET.writeLine("AGREE");
-    if (!SOCKET.readLine().matchFirst("^START:")) {
-        return 1;
-    }
-
-    return csaloop(us);
-}
-
-
-int csaloop(const color_t us)
-{
-    Position p = parsePosition("sfen lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1");
-    stdout.writeln(p.toString());
-
-    if (us == Color.BLACK) {
-        search.RemainingMillis += config.INCREMENT_SECONDS * 1000;
-        new SearchThread(p).start(); // search & send
-    }
-
-    for (;;) {
-        const string line = SOCKET.readLine();
-
-        if (line.matchFirst(r"^(\+|-)\d{4}\D{2},T\d+$")) {
-
-            if (p.sideToMove == us) {
-                search.RemainingMillis -= to!int(line.matchFirst(r",T(\d+)")[1]) * 1000; // 秒 -> ミリ秒
+            if (line == "usi") {
+                on_usi(line);
+            } else if (line == "isready") {
+                on_isready(line);
+            } else if (line.startsWith("setoption ")) {
+                on_setoption(line);
+            } else if (line == "usinewgame") {
+                log("usinewgamed");
+            } else if (line.startsWith("position ")) {
+                on_position(line);
+            } else if (line.startsWith("go ")) {
+                on_go(line);
+                //log("gone");
+                //send("bestmove 8c8d");
+            } else if (line == "stop") {
+                log("stop: not implemented");
+            } else if (line == "ponderhit") {
+                log("ponderhit: not implemented");
+            } else if (line == "quit") {
+                log("quitting");
+                return; // プログラムを終了
+            } else if (line.startsWith("gameover ")) {
+                log("gameovered");
+            } else {
+                log(line ~ ": unsupported command");
             }
-
-            p = p.doMove(parseMove(line, p));
-            stderr.writeln(toString(p));
-            stderr.writefln("%d seconds.", search.RemainingMillis / 1000); // ミリ秒 -> 秒
-            if (p.sideToMove == us) {
-                search.RemainingMillis += config.INCREMENT_SECONDS * 1000;
-                new SearchThread(p).start(); // search & send
-            }
-
-        } else if (line.matchFirst(r"^%TORYO(,T\d+)?$") || line.matchFirst(r"^%KACHI(,T\d+)?$")) {
-
-            // do nothing
-
-        } else if (line.among("#ILLEGAL_ACTION", "#ILLEGAL_MOVE", "#JISHOGI", "#MAX_MOVES", "#OUTE_SENNICHITE", "#RESIGN", "#SENNICHITE", "#TIME_UP")) {
-
-            // do nothing
-
-        } else if (line.among("#WIN", "#LOSE", "#DRAW", "#CENSORED", "#CHUDAN")) {
-
-            SOCKET.writeLine("LOGOUT");
-            return 0;
-
-        } else if (line == "") {
-
-            /*
-             * see http://www2.computer-shogi.org/protocol/tcp_ip_server_121.html
-             * > クライアントは対局中、手番にかかわらず、長さゼロの文字列、もしくはLF1文字のみをサーバに送信することができる。
-             * > サーバは前者を受け取った場合、単純に無視する。後者を受け取った場合、短い待ち時間の後にLF1文字のみをそのクライアントに返信する。
-             */
-
-        } else {
-
-            stderr.writefln("unknown command: '%s'", line);
-
         }
+    } catch (Throwable e) {
+        log(e.msg);
     }
-}
-
-
-class SearchThread : Thread
-{
-    private Position p;
-
-    this(Position p)
-    {
-        this.p = p;
-        super(&run);
-    }
-
-    private void run()
-    {
-        Move[64] pv;
-        int score = p.ponder(pv);
-        if (pv[0] == Move.TORYO) {
-            SOCKET.writeLine(pv[0].toString(p));
-        } else if (USE_ENHANCED_CSA_PROTOCOL) {
-            SOCKET.writeLine(format("%s,'* %d %s", pv[0].toString(p), (p.sideToMove == Color.BLACK ? score : -score), pv.toString(p, 1)));
-        } else {
-            SOCKET.writeLine(format("%s", pv[0].toString(p)));
-        }
-    }
-}
-
-
-private void test()
-{
-    // Position p = parsePosition("sfen l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w RGgsn5p 1");
-    // stdout.writeln(p.toString());
-    // Move[600] moves;
-    // for (int i = 0; i < 1000000; i++) {
-    //     p.legalMoves(moves);
-    // }
-
-    Position p = parsePosition("sfen l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w RGgsn5p 1"); // 指し手生成祭り
-    //Position p = parsePosition("sfen kn6l/3g2r2/sGp2s3/lp1pp4/2N2ppl1/2P1P4/2NS1PP1+p/3GKS3/+b3G2+rL b Pbn6p 1"); // 打ち歩詰め局面
-    //Position p = parsePosition("sfen lnsgkgsnl/1r5b1/p1ppppppp/9/1p7/9/PPPPPPPPP/1B4KR1/LNSG1GSNL b - 0"); // test+default-1500-0+tenuki+neakih+20180403232658
-    writeln(p.sizeof);
-    stdout.writeln(p.toString());
-    Move[64] pv;
-    p.ponder(pv);
-    stdout.writefln("stored: %12d", tt.stat_stored);
-    stdout.writefln("nothing:%12d", tt.stat_nothing);
-    stdout.writefln("hit:    %12d", tt.stat_hit);
-    stdout.writefln("misshit:%12d", tt.stat_misshit);
-
-    // Position p = parsePosition("sfen 9/9/9/9/9/9/9/9/P8 b - 1");
-    // stdout.writeln(p.toString());
-    // p = p.doMove(parseMove("+9998FU", p));
-    // stdout.writeln(p.toString());
-}
-
-
-/**
- * ソケットに文字列を書き込む
- */
-private void writeLine(ref Socket s, string str)
-{
-    misc.writeln(s, str);
-    stderr.writefln(">\"%s\\n\"", str);
-}
-
-
-/**
- * ソケットから１行読み込む
- */
-private string readLine(ref Socket s)
-{
-    string line = misc.readln(s);
-    stderr.writefln("<\"%s\\n\"", line);
-    RECV_LOG.writeln(line);
-    RECV_LOG.flush();
-    return line;
-}
-
-
-/**
- * ソケットからパターンに一致するまで行を読む
- */
-private Captures!string readLineUntil(ref Socket s, string re)
-{
-    Captures!string m;
-    for (string str = s.readLine(); (m = str.matchFirst(re)).empty; str = s.readLine()) {}
-    return m;
-}
-
-
-/**
- * see https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/apply.html
- */
-T apply(T)(T it, void function(ref T) action) {
-    action(it);
-    return it;
 }
