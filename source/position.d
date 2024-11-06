@@ -1,3 +1,5 @@
+module tenuki.position;
+
 import std.array;
 import std.conv;
 import std.format;
@@ -5,7 +7,7 @@ import std.stdint;
 import std.regex;
 import std.string;
 import std.ascii;
-import types;
+import tenuki.types;
 
 
 /**

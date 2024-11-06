@@ -1,12 +1,12 @@
 // eval.d.nnue
-module eval;
+module tenuki.eval;
 
 import core.stdc.stdio;
 import std.algorithm;
 import std.exception;
 import std.stdint;
 import std.stdio;
-import types, position;
+import tenuki.types, tenuki.position;
 
 private enum FV_SCALE = 16;
 __gshared private int16_t[256]             featureTransformerBiases;

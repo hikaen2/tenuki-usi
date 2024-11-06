@@ -1,4 +1,4 @@
-module types;
+module tenuki.types;
 
 import std.array;
 import std.conv;
@@ -7,7 +7,7 @@ import std.stdint;
 import std.regex;
 import std.string;
 import std.ascii;
-import position;
+import tenuki.position;
 
 alias color_t = uint8_t;
 

@@ -1,4 +1,4 @@
-module search;
+module tenuki.search;
 
 import std.array;
 import std.algorithm.comparison;
@@ -10,8 +10,7 @@ import std.random;
 import std.stdio;
 import std.typecons;
 
-import eval,movegen,types, position;
-static import book, config;
+import tenuki.eval, tenuki.movegen, tenuki.types, tenuki.position;
 
 
 Move ponder(ref Position pos)

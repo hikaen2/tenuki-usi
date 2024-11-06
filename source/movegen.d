@@ -1,7 +1,7 @@
-module movegen;
+module tenuki.movegen;
 
 import std.stdint;
-import types, position;
+import tenuki.types, tenuki.position;
 
 
 /**

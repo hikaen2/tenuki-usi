@@ -1,4 +1,4 @@
-module main;
+module tenuki.main;
 
 import std.stdio;
 import std.datetime;
@@ -8,7 +8,7 @@ import std.conv : to;
 import core.thread;
 import core.sys.posix.unistd : getpid;
 
-import types, book, eval, search, position, movegen;
+import tenuki.types, tenuki.eval, tenuki.search, tenuki.position, tenuki.movegen;
 
 
 __gshared File logFile;

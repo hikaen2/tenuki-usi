@@ -1,4 +1,4 @@
-module config;
+module tenuki.config;
 
 enum SEARCH_THREADS = 1;
 enum SEARCH_MILLIS = 10_000;
