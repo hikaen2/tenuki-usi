@@ -44,7 +44,8 @@ struct Address
 {
     uint8_t i;
 
-    //enum Address _99 = Address.parse("99");
+    enum _11 = Address.parse("11");
+    enum _99 = Address.parse("99");
 
     this(int i)
     {
@@ -53,19 +54,37 @@ struct Address
 
     int file()
     {
-        return i / 9 + 1; // 1から9を返す
+        immutable FILE = [
+            1, 1, 1, 1, 1, 1, 1, 1, 1,
+            2, 2, 2, 2, 2, 2, 2, 2, 2,
+            3, 3, 3, 3, 3, 3, 3, 3, 3,
+            4, 4, 4, 4, 4, 4, 4, 4, 4,
+            5, 5, 5, 5, 5, 5, 5, 5, 5,
+            6, 6, 6, 6, 6, 6, 6, 6, 6,
+            7, 7, 7, 7, 7, 7, 7, 7, 7,
+            8, 8, 8, 8, 8, 8, 8, 8, 8,
+            9, 9, 9, 9, 9, 9, 9, 9, 9,
+        ];
+        return FILE[i]; // 1から9を返す
     }
 
     int rank() {
-        return i % 9 + 1; // 1から9を返す
+        immutable RANK = [
+            1, 2, 3, 4, 5, 6, 7, 8, 9,
+            1, 2, 3, 4, 5, 6, 7, 8, 9,
+            1, 2, 3, 4, 5, 6, 7, 8, 9,
+            1, 2, 3, 4, 5, 6, 7, 8, 9,
+            1, 2, 3, 4, 5, 6, 7, 8, 9,
+            1, 2, 3, 4, 5, 6, 7, 8, 9,
+            1, 2, 3, 4, 5, 6, 7, 8, 9,
+            1, 2, 3, 4, 5, 6, 7, 8, 9,
+            1, 2, 3, 4, 5, 6, 7, 8, 9,
+        ];
+        return RANK[i]; // 1から9を返す
     }
 
-    string toString(FORMAT _format = FORMAT.CSA) {
-        if (_format == FORMAT.CSA) {
-            return format("%s%s", file(), rank()); // "11" から "99" を返す
-        } else {
-            return format("%s%s", file(), cast(char)('a' + rank() - 1)); // "1a" から "9i" を返す
-        }
+    string toString() {
+        return format("%s%s", file(), cast(char)('a' + rank() - 1)); // "1a" から "9i" を返す
     }
 
     static Address parse(string s)
@@ -78,21 +97,11 @@ struct Address
 
 unittest
 {
-    assert(Address(14).toString == "26");
-
-    Address a = Address.parse("26");
+    Address a = Address.parse("2f");
     assert(a.i == 14);
     assert(a.file == 2);
     assert(a.rank == 6);
-    assert(a.toString == "26");
-    assert(a.toString(FORMAT.USI) == "2f");
-
-    a = Address.parse("2f");
-    assert(a.i == 14);
-    assert(a.file == 2);
-    assert(a.rank == 6);
-    assert(a.toString == "26");
-    assert(a.toString(FORMAT.USI) == "2f");
+    assert(a.toString == "2f");
 }
 
 
@@ -120,34 +129,24 @@ struct Type
     enum PROMOTED_ROOK   = Type(13); // 龍
     enum EMPTY           = Type(14); // 空
 
-    private enum string[] CSA = ["FU", "KY", "KE", "GI", "KI", "KA", "HI", "OU", "TO", "NY", "NK", "NG", "UM", "RY", ""];
-    private enum string[] USI = ["P",  "L",  "N",  "S",  "G",  "B",  "R",  "K",  "+P", "+L", "+N", "+G", "+B", "+R", ""];
+    private enum string[] USI = ["P", "L", "N", "S", "G", "B", "R", "K", "+P", "+L", "+N", "+G", "+B", "+R", ""];
 
-    string toString(FORMAT _format = FORMAT.CSA)
+    string toString()
     {
-        return _format == FORMAT.CSA ? CSA[i] : USI[i];
+        return USI[i];
     }
 
     static parse(string s)
     {
         import std.algorithm : countUntil;
-
-        s = s.toUpper;
-        auto index = CSA.countUntil(s);
-        if (index >= 0) {
-            return Type(cast(uint8_t)index);
-        }
-        index = USI.countUntil(s);
-        return Type(cast(uint8_t)index);
+        return Type(cast(uint8_t)USI.countUntil(s.toUpper));
     }
 }
 
 unittest
 {
-    assert(Type.parse("TO") == Type.PROMOTED_PAWN);
     assert(Type.parse("+p") == Type.PROMOTED_PAWN);
-    assert(Type.PAWN.toString == "FU");
-    assert(Type.PAWN.toString(FORMAT.USI) == "P");
+    assert(Type.PAWN.toString == "P");
 }
 
 
@@ -240,7 +239,7 @@ struct Square
 
     bool isPromotable()
     {
-        enum bool[] PROMOTABLE = [
+        immutable PROMOTABLE = [
             true, true, true, true, false, true, true, false, false, false, false, false, false, false,
             true, true, true, true, false, true, true, false, false, false, false, false, false, false,
             false,
@@ -250,7 +249,7 @@ struct Square
 
     Type type()
     {
-        enum Type[] TYPE = [
+        immutable TYPE = [
             Type.PAWN, Type.LANCE, Type.KNIGHT, Type.SILVER, Type.GOLD, Type.BISHOP, Type.ROOK, Type.KING,
             Type.PROMOTED_PAWN, Type.PROMOTED_LANCE, Type.PROMOTED_KNIGHT, Type.PROMOTED_SILVER, Type.PROMOTED_BISHOP, Type.PROMOTED_ROOK,
             Type.PAWN, Type.LANCE, Type.KNIGHT, Type.SILVER, Type.GOLD, Type.BISHOP, Type.ROOK, Type.KING,
@@ -262,7 +261,7 @@ struct Square
 
     Type baseType()
     {
-        enum Type[] BASETYPE = [
+        immutable BASETYPE = [
             Type.PAWN, Type.LANCE, Type.KNIGHT, Type.SILVER, Type.GOLD, Type.BISHOP, Type.ROOK, Type.KING,
             Type.PAWN, Type.LANCE, Type.KNIGHT, Type.SILVER, Type.BISHOP, Type.ROOK,
             Type.PAWN, Type.LANCE, Type.KNIGHT, Type.SILVER, Type.GOLD, Type.BISHOP, Type.ROOK, Type.KING,
@@ -274,7 +273,7 @@ struct Square
 
     Square promote()
     {
-        enum Square[] PROMOTE = [
+        immutable PROMOTE = [
             Square.B_PROMOTED_PAWN, Square.B_PROMOTED_LANCE, Square.B_PROMOTED_KNIGHT, Square.B_PROMOTED_SILVER, Square.B_GOLD, Square.B_PROMOTED_BISHOP, Square.B_PROMOTED_ROOK, Square.B_KING,
             Square.B_PROMOTED_PAWN, Square.B_PROMOTED_LANCE, Square.B_PROMOTED_KNIGHT, Square.B_PROMOTED_SILVER, Square.B_PROMOTED_BISHOP, Square.B_PROMOTED_ROOK,
             Square.W_PROMOTED_PAWN, Square.W_PROMOTED_LANCE, Square.W_PROMOTED_KNIGHT, Square.W_PROMOTED_SILVER, Square.W_GOLD, Square.W_PROMOTED_BISHOP, Square.W_PROMOTED_ROOK, Square.W_KING,
@@ -286,7 +285,7 @@ struct Square
 
     Square inv()
     {
-        enum Square[] INV = [
+        immutable INV = [
             Square.W_PAWN, Square.W_LANCE, Square.W_KNIGHT, Square.W_SILVER, Square.W_GOLD, Square.W_BISHOP, Square.W_ROOK, Square.W_KING,
             Square.W_PROMOTED_PAWN, Square.W_PROMOTED_LANCE, Square.W_PROMOTED_KNIGHT, Square.W_PROMOTED_SILVER, Square.W_PROMOTED_BISHOP, Square.W_PROMOTED_ROOK,
             Square.B_PAWN, Square.B_LANCE, Square.B_KNIGHT, Square.B_SILVER, Square.B_GOLD, Square.B_BISHOP, Square.B_ROOK, Square.B_KING,
@@ -309,8 +308,7 @@ struct Square
     static parse(string s)
     {
         import std.algorithm : countUntil;
-        auto index = SFEN.countUntil(s);
-        return Square(cast(uint8_t)index);
+        return Square(cast(uint8_t)SFEN.countUntil(s));
     }
 }
 
@@ -400,33 +398,21 @@ struct Move
         return (i & 0b0100000000000000) != 0;
     }
 
-    string toString(ref Position p, FORMAT _format = FORMAT.CSA)
+    string toString()
     {
-        if (_format == FORMAT.CSA) {
-            if (this == Move.TORYO) {
-                return "%TORYO";
-            }
+        if (this == Move.TORYO) {
+            return "resign";
+        }
 
-            string side = p.sideToMove == Color.BLACK ? "+" : "-";
-            string from = isDrop ? "00" : this.from.toString;
-            string to = this.to.toString;
-            Type t = isDrop ? cast(Type)(this.from.i) : isPromote ? p.board[this.from.i].promote.type : p.board[this.from.i].type;
-            return side ~ from ~ to ~ t.toString;
+        if (isDrop) {
+            return this.type.toString ~ "*" ~ this.to.toString;
         } else {
-            if (this == Move.TORYO) {
-                return "resign";
+            string moveStr;
+            moveStr = from.toString ~ to.toString;
+            if (isPromote) {
+                moveStr ~= "+";
             }
-
-            if (isDrop) {
-                return this.type.toString(FORMAT.USI) ~ "*" ~ this.to.toString(FORMAT.USI);
-            } else {
-                string moveStr;
-                moveStr = from.toString(FORMAT.USI) ~ to.toString(FORMAT.USI);
-                if (isPromote) {
-                    moveStr ~= "+";
-                }
-                return moveStr;
-            }
+            return moveStr;
         }
     }
 
@@ -445,28 +431,12 @@ struct Move
         return Move(cast(uint16_t)(t.i << 7 | to.i | 0b0100000000000000));
     }
 
-    static Move parse(string s, ref Position p)
-    {
-        auto m = s.matchFirst(r"(-|\+)(\d{2})(\d{2})(\w{2})");
-        int from = Address.parse(m[2]).i;
-        int to = Address.parse(m[3]).i;
-        Type t = Type.parse(m[4]);
-
-        if (from == -1) {
-            return Move.createDrop(t, Address(to)); // fromが0なら駒打ち
-        } else if (t != p.board[from].type()) {
-            return Move.createPromote(Address(from), Address(to)); // 成る
-        } else {
-            return Move.createMove(Address(from), Address(to));
-        }
-    }
-
     /*
      * 7g7f
      * 8h2b+
      * G*5b
      */
-    static Move parseUsi(string s)
+    static Move parse(string s)
     {
         auto m = s.matchFirst(r"^(\D)\*(\d\D)");
         if (!m.empty) {
@@ -483,15 +453,21 @@ struct Move
 
 unittest
 {
-    Position p = Position.create;
-    Move m = Move.parse("+2726FU", p);
+    Move m = Move.parse("2g2f");
+    assert(m.toString == "2g2f");
+    assert(m.from == Address.parse("2g"));
+    assert(m.to == Address.parse("2f"));
     assert(!m.isDrop);
     assert(!m.isPromote);
-    assert(m.from == Address.parse("27"));
-    assert(m.to == Address.parse("26"));
-    assert(m.toString(p) == "+2726FU");
-    assert(m.toString(p, FORMAT.USI) == "2g2f");
 }
 
 enum SQ11 = 0;
 enum SQ99 = 80;
+
+
+struct Options
+{
+    static int depth = 1;
+    static int q_depth = 0;
+    static bool wait = false;
+}

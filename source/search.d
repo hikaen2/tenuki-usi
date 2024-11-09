@@ -29,25 +29,17 @@ Move ponder(ref Position pos)
     Tuple!(Move, int)[] movesAndScores;
     foreach (move; moves[0..length]) {
         Position p = pos.doMove(move);
-        movesAndScores ~= tuple(move, -search(p, 0, -b, -a));
-
-
-        //Position p = pos.doMove(move);
-        //if(p.doMove(Move.NULL_MOVE).inCheck) {
-        //    movesAndScores ~= tuple(move, cast(short)-10000);
-        //} else {
-        //    movesAndScores ~= tuple(move, -p.staticValue);
-        //}
+        if (p.doMove(Move.NULL_MOVE).inCheck) {
+            movesAndScores ~= tuple(move, -10000);
+        } else {
+            movesAndScores ~= tuple(move, -search(p, Options.depth - 1, -b, -a));
+        }
     }
 
     movesAndScores.sort!((a, b) => a[1] > b[1]);
     foreach (t; movesAndScores) {
-        writefln("%s %s", t[0].toString(pos), t[1]);
+        writefln("%s %s", t[0].toString, t[1]);
     }
-
-    //int bestValue = int.min;
-    //
-    //search0(pos, 1, outPv, bestValue);
 
     movesAndScores = movesAndScores.filter!(x => x[1] > -10000).array;
     //movesAndScores.randomShuffle;
@@ -106,7 +98,7 @@ private int search(Position pos, int depth, int a, int b)
 
     if (pos.inUchifuzume) return 10000; // 打ち歩詰めされていれば勝ち
 
-    if (depth <= 0) return qsearch(pos, depth + 1, a, b);
+    if (depth <= 0) return qsearch(pos, Options.q_depth, a, b);
 
     Move[593] moves;
     int length = pos.legalMoves(moves);
