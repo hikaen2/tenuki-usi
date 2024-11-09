@@ -62,7 +62,7 @@ short staticValue(Position pos)
     int[38] wlist;
     int length = 0;
 
-    for (int i = SQ11; i <= SQ99; i++) {
+    for (int i = Address.of11.i; i <= Address.of99.i; i++) {
         if (pos.board[i] == Square.B_KING) bk =      i;
         if (pos.board[i] == Square.W_KING) wk = 80 - i;
     }
@@ -80,11 +80,11 @@ short staticValue(Position pos)
             length++;
         }
     }
-    for (int i = SQ11; i <= SQ99; i++) {
+    for (int i = Address.of11.i; i <= Address.of99.i; i++) {
         Square sq = pos.board[i];
         if (sq != Square.EMPTY && sq.type != Type.KING) {
             blist[length] = bk * 1548 + OFFSET_PP[sq.i] + i;
-            wlist[length] = wk * 1548 + OFFSET_PP[sq.inv.i] + (SQ99 - i);
+            wlist[length] = wk * 1548 + OFFSET_PP[sq.inv.i] + (Address.of99.i - i);
             length++;
         }
     }

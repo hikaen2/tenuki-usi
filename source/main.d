@@ -28,22 +28,20 @@ void main()
             } else if (line.startsWith("setoption ")) {
                 on_setoption(line);
             } else if (line == "usinewgame") {
-                log("usinewgamed");
+                on_usinewgame(line);
             } else if (line.startsWith("position ")) {
                 on_position(line);
             } else if (line.startsWith("go ")) {
                 on_go(line);
-                //log("gone");
-                //send("bestmove 8c8d");
             } else if (line == "stop") {
-                log("stop: not implemented");
+                on_stop(line);
             } else if (line == "ponderhit") {
-                log("ponderhit: not implemented");
+                on_ponderhit(line);
             } else if (line == "quit") {
                 log("quitting");
                 return; // プログラムを終了
             } else if (line.startsWith("gameover ")) {
-                log("gameovered");
+                on_gameover(line);
             } else {
                 log(line ~ ": unsupported command");
             }
@@ -85,6 +83,8 @@ void on_isready(string line)
 
 void on_position(string line)
 {
+    log("on_position");
+
     auto parts = line.split();
     string sfen_or_startpos = parts[1];
     auto m = line.matchFirst(regex(r"moves (.*)$"));
@@ -96,12 +96,14 @@ void on_position(string line)
         log(mv.toString);
 
         position = position.doMove(mv);
-        log(position.toString);
     }
+    log(position.toString);
 }
 
 void on_setoption(string line)
 {
+    log("on_setoption");
+
     auto parts = line.split();
     string name = parts[2];
     string value = parts[4];
@@ -109,6 +111,11 @@ void on_setoption(string line)
     if (name == "Depth") Options.depth = value.to!int;
     if (name == "Q_Depth") Options.q_depth = value.to!int;
     if (name == "Wait") Options.wait = value.to!bool;
+}
+
+void on_usinewgame(string line)
+{
+    log("on_usinewgame");
 }
 
 void on_go(string line)
@@ -120,4 +127,19 @@ void on_go(string line)
 
     Move m = position.ponder();
     send("bestmove " ~ m.toString);
+}
+
+void on_stop(string line)
+{
+    log("stop: not implemented");
+}
+
+void on_ponderhit(string line)
+{
+    log("ponderhit: not implemented");
+}
+
+void on_gameover(string line)
+{
+    log("on_gameover");
 }

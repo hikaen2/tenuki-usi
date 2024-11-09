@@ -44,12 +44,18 @@ struct Address
 {
     uint8_t i;
 
-    enum _11 = Address.parse("11");
-    enum _99 = Address.parse("99");
+    enum of11 = Address.parse("11");
+    enum of99 = Address.parse("99");
+    enum INVALID = Address(81); // 無効なアドレス
 
     this(int i)
     {
         this.i = cast(uint8_t)i;
+    }
+
+    Address succ()
+    {
+        return Address(i + 1);
     }
 
     int file()
@@ -64,6 +70,7 @@ struct Address
             7, 7, 7, 7, 7, 7, 7, 7, 7,
             8, 8, 8, 8, 8, 8, 8, 8, 8,
             9, 9, 9, 9, 9, 9, 9, 9, 9,
+            0,
         ];
         return FILE[i]; // 1から9を返す
     }
@@ -79,6 +86,7 @@ struct Address
             1, 2, 3, 4, 5, 6, 7, 8, 9,
             1, 2, 3, 4, 5, 6, 7, 8, 9,
             1, 2, 3, 4, 5, 6, 7, 8, 9,
+            0,
         ];
         return RANK[i]; // 1から9を返す
     }
@@ -93,15 +101,98 @@ struct Address
         int rank = s[1].isDigit ? s[1..2].to!int :  s[1] - 'a' + 1;
         return Address(cast(uint8_t)((file - 1) * 9 + rank - 1));
     }
+
+    Address go(Dir d)
+    {
+        Address to = Address(i + d.value);
+
+        if (Address.of99.i < to.i) {
+            return Address.INVALID;
+        }
+
+        int diff = to.rank() - rank();
+        if (diff == 8 || diff == -8) {
+            return Address.INVALID;
+        }
+
+        return to;
+    }
 }
 
 unittest
 {
+    assert(Address.parse("26").toString == "2f");
+
     Address a = Address.parse("2f");
     assert(a.i == 14);
     assert(a.file == 2);
     assert(a.rank == 6);
     assert(a.toString == "2f");
+}
+
+
+/**
+ * Direction
+ *
+ * 1111111x value
+ * xxxxxxx1 fly
+ */
+struct Dir
+{
+    int8_t i;
+
+    enum Dir N   = {-1 * 2}; // -1 << 1
+    enum Dir E   = {-9 * 2}; // -9 << 1
+    enum Dir W   = {+9 * 2}; // +9 << 1
+    enum Dir S   = {+1 * 2}; // +1 << 1
+    enum Dir NE  = {N.i + E.i};
+    enum Dir NW  = {N.i + W.i};
+    enum Dir SE  = {S.i + E.i};
+    enum Dir SW  = {S.i + W.i};
+    enum Dir NNE = {N.i + N.i + E.i};
+    enum Dir NNW = {N.i + N.i + W.i};
+    enum Dir SSE = {S.i + S.i + E.i};
+    enum Dir SSW = {S.i + S.i + W.i};
+    enum Dir FN  = {N.i | 1};
+    enum Dir FE  = {E.i | 1};
+    enum Dir FW  = {W.i | 1};
+    enum Dir FS  = {S.i | 1};
+    enum Dir FNE = {NE.i | 1};
+    enum Dir FNW = {NW.i | 1};
+    enum Dir FSE = {SE.i | 1};
+    enum Dir FSW = {SW.i | 1};
+
+    bool isFly() const { return (i & 1) != 0; }
+    int  value() const { return i >> 1; }
+}
+
+unittest
+{
+    assert(Address.parse("55").go(Dir.N) == Address.parse("54"));
+    assert(Address.parse("55").go(Dir.E) == Address.parse("45"));
+    assert(Address.parse("55").go(Dir.W) == Address.parse("65"));
+    assert(Address.parse("55").go(Dir.S) == Address.parse("56"));
+
+    assert(Address.parse("55").go(Dir.NE) == Address.parse("44"));
+    assert(Address.parse("55").go(Dir.NW) == Address.parse("64"));
+    assert(Address.parse("55").go(Dir.SE) == Address.parse("46"));
+    assert(Address.parse("55").go(Dir.SW) == Address.parse("66"));
+
+    assert(Address.parse("55").go(Dir.NNE) == Address.parse("43"));
+    assert(Address.parse("55").go(Dir.NNW) == Address.parse("63"));
+    assert(Address.parse("55").go(Dir.SSE) == Address.parse("47"));
+    assert(Address.parse("55").go(Dir.SSW) == Address.parse("67"));
+
+    assert(Address.parse("11").go(Dir.N) == Address.INVALID);
+    assert(Address.parse("11").go(Dir.E) == Address.INVALID);
+    assert(Address.parse("11").go(Dir.NE) == Address.INVALID);
+
+    assert(Address.parse("51").go(Dir.N) == Address.INVALID);
+    assert(Address.parse("59").go(Dir.S) == Address.INVALID);
+
+    assert(Address.parse("99").go(Dir.S) == Address.INVALID);
+    assert(Address.parse("99").go(Dir.W) == Address.INVALID);
+    assert(Address.parse("99").go(Dir.SW) == Address.INVALID);
 }
 
 
@@ -321,41 +412,6 @@ unittest
 
 
 /**
- * Direction
- *
- * 1111111x value
- * xxxxxxx1 fly
- */
-struct Dir
-{
-    int8_t i;
-
-    enum Dir N   = {-1 * 2}; // -1 << 1
-    enum Dir E   = {-9 * 2}; // -9 << 1
-    enum Dir W   = {+9 * 2}; // +9 << 1
-    enum Dir S   = {+1 * 2}; // +1 << 1
-    enum Dir NE  = {N.i + E.i};
-    enum Dir NW  = {N.i + W.i};
-    enum Dir SE  = {S.i + E.i};
-    enum Dir SW  = {S.i + W.i};
-    enum Dir NNE = {N.i + N.i + E.i};
-    enum Dir NNW = {N.i + N.i + W.i};
-    enum Dir SSE = {S.i + S.i + E.i};
-    enum Dir SSW = {S.i + S.i + W.i};
-    enum Dir FN  = {N.i | 1};
-    enum Dir FE  = {E.i | 1};
-    enum Dir FW  = {W.i | 1};
-    enum Dir FS  = {S.i | 1};
-    enum Dir FNE = {NE.i | 1};
-    enum Dir FNW = {NW.i | 1};
-    enum Dir FSE = {SE.i | 1};
-    enum Dir FSW = {SW.i | 1};
-
-    bool isFly() const { return (i & 1) != 0; }
-    int  value() const { return i >> 1; }
-}
-
-/**
  * 指し手を表す型
  *
  * 1xxxxxxx xxxxxxxx promote
@@ -460,9 +516,6 @@ unittest
     assert(!m.isDrop);
     assert(!m.isPromote);
 }
-
-enum SQ11 = 0;
-enum SQ99 = 80;
 
 
 struct Options
